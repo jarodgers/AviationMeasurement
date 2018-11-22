@@ -20,7 +20,7 @@ void TestTask(void *pvParameters)
 {
 	//TickType_t xLastWakeTime = xTaskGetTickCount();
 	I2C_Initialize();
-	uint8_t test[2] = {0xe0, 0xb6};
+	uint8_t test[2] = {0x74, 0x4a}; // 2x oversampling temp and pressure, forced mode (start measurement)
 	I2C_Transmit(0xec, test, 2);
 	for (;;);
 }

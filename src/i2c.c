@@ -49,6 +49,8 @@ uint8_t I2C_Transmit(uint8_t address, uint8_t *data, uint16_t len)
 		I2C_Initialize();
 	}
 
+	I2C_AcknowledgeConfig(I2C1, ENABLE);
+
 	I2C_GenerateSTART(I2C1, ENABLE);
 	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT))
 		; // wait for event
@@ -87,6 +89,8 @@ uint8_t I2C_Receive(uint8_t address, uint8_t *data, uint16_t num_bytes)
 		I2C_Initialize();
 	}
 
+	I2C_AcknowledgeConfig(I2C1, ENABLE);
+
 	I2C_GenerateSTART(I2C1, ENABLE);
 	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT))
 		; // wait for event
@@ -102,8 +106,9 @@ uint8_t I2C_Receive(uint8_t address, uint8_t *data, uint16_t num_bytes)
 		{
 			I2C_AcknowledgeConfig(I2C1, DISABLE);
 		}
+
 		while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED))
-		; // wait for event
+			; // wait for event
 
 		data[i] = I2C_ReceiveData(I2C1);
 	}
