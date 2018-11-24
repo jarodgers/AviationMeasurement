@@ -1,7 +1,7 @@
 #include "stm32f4xx.h"
 #include "i2c.h"
 
-static uint8_t _is_init = 0;
+static volatile uint8_t _is_init = 0;
 
 void I2C_Initialize()
 {
