@@ -42,12 +42,15 @@ uint8_t I2C_IsInitialized()
 	return _is_init;
 }
 
-uint8_t I2C_Transmit(uint8_t address, uint8_t *data, uint16_t len)
+int8_t I2C_Transmit(uint8_t address, uint8_t *data, uint16_t len)
 {
 	if (!_is_init)
 	{
 		I2C_Initialize();
 	}
+
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) == SET)
+		; // wait until any previous communications are finished
 
 	I2C_AcknowledgeConfig(I2C1, ENABLE);
 
@@ -82,12 +85,15 @@ uint8_t I2C_Transmit(uint8_t address, uint8_t *data, uint16_t len)
 	return 0;
 }
 
-uint8_t I2C_Receive(uint8_t address, uint8_t *data, uint16_t num_bytes)
+int8_t I2C_Receive(uint8_t address, uint8_t *data, uint16_t num_bytes)
 {
 	if (!_is_init)
 	{
 		I2C_Initialize();
 	}
+
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) == SET)
+		; // wait until any previous communications are finished
 
 	I2C_AcknowledgeConfig(I2C1, ENABLE);
 
@@ -112,6 +118,8 @@ uint8_t I2C_Receive(uint8_t address, uint8_t *data, uint16_t num_bytes)
 
 		data[i] = I2C_ReceiveData(I2C1);
 	}
+
+	I2C_GenerateSTOP(I2C1, ENABLE);
 
 	return 0;
 }

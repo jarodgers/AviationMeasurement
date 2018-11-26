@@ -14,14 +14,38 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "tph.h"
 #include "i2c.h"
+#include "util.h"
 
 void TestTask(void *pvParameters)
 {
-	//TickType_t xLastWakeTime = xTaskGetTickCount();
-	I2C_Initialize();
-	uint8_t test[2] = {0x74, 0x4a}; // 2x oversampling temp and pressure, forced mode (start measurement)
-	I2C_Transmit(0xec, test, 2);
+	/*I2C_Initialize();
+	uint8_t test = 0xd0;
+	uint8_t result;
+	I2C_Transmit(0xec, &test, 1);
+	I2C_Receive(0xec, &result, 1);*/
+	/*for (;;)
+	{
+		GPIO_ToggleBits(GPIOA, GPIO_Pin_5);
+		Util_DelayMs(1);
+	}*/
+	float pressure = 0.0f;
+	if(TPH_Initialize() == 0)
+	{
+		uint16_t meas_time = TPH_GetMeasTimeMs();
+		TickType_t xLastWakeTime = xTaskGetTickCount();
+		int8_t result;
+		for (;;)
+		{
+			result = TPH_StartMeasurement();
+			while (!TPH_CheckForNewData())
+				;
+			TPH_GetPressure(&pressure, TPH_PRESSURE_INHG);
+			vTaskDelayUntil(&xLastWakeTime, meas_time);
+		}
+	}
+
 	for (;;);
 }
 

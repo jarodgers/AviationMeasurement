@@ -1,5 +1,7 @@
+#include <stdlib.h>
 #include <string.h>
 #include "i2c.h"
+#include "util.h"
 #include "tph.h"
 #include "bme680.h"
 
@@ -7,8 +9,9 @@
 
 static uint8_t _new_data = 0;
 
-static uint8_t _is_init = 0;
 static struct bme680_dev _sensor;
+struct bme680_field_data _field_data;
+static uint16_t _meas_time = 0;
 
 static int8_t _tph_i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
@@ -17,6 +20,8 @@ static int8_t _tph_i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, ui
     memcpy(payload+1,data,len);
     int8_t result = I2C_Transmit(dev_id << 1, payload, 1 + len);
     free(payload);
+
+    return result;
 }
 
 static int8_t _tph_i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len)
@@ -31,16 +36,16 @@ static int8_t _tph_i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uin
     return (int8_t)result;
 }
 
-uint8_t TPH_Initialize()
+int8_t TPH_Initialize()
 {
     _sensor.dev_id = BME680_I2C_ADDR_PRIMARY;
     _sensor.intf = BME680_I2C_INTF;
     _sensor.write = _tph_i2c_write;
     _sensor.read = _tph_i2c_read;
-    _sensor.delay_ms = NULL; // TODO: delay function mandatory
+    _sensor.delay_ms = Util_DelayMs;
     _sensor.amb_temp = 20;
 
-    int16_t result = bme680_init(&_sensor);
+    int8_t result = bme680_init(&_sensor);
 
     if (result != BME680_OK)
         return result;
@@ -56,61 +61,51 @@ uint8_t TPH_Initialize()
     result = bme680_set_sensor_settings(set_required_settings,&_sensor)
         || bme680_set_sensor_mode(&_sensor);
 
+    bme680_get_profile_dur(&_meas_time, &_sensor);
+
     return result;
 }
 
-void TPH_StartMeasurement(uint8_t temp_oversampling, uint8_t pressure_oversampling, uint8_t humidity_oversampling)
+int8_t TPH_StartMeasurement()
 {
     _new_data = 0;
 
-    uint8_t payload[4] = {
-        0x72, // ctrl_hum register
-        humidity_oversampling,
-        0x74, // ctrl_meas register
-        (temp_oversampling << 5) | (pressure_oversampling << 2) | 0x01  // the 0x01 is the "mode" setting,
-                                                                        // which starts a measurement
-    };
-
-    I2C_Transmit(TPH_ADDRESS, payload, 4);
+    _sensor.power_mode = BME680_FORCED_MODE;
+	return bme680_set_sensor_mode(&_sensor);
 }
 
-uint8_t TPH_CheckForNewData()
+int8_t TPH_CheckForNewData()
 {
     if (_new_data)
         return 1;
 
-    uint8_t reg = 0x1d; // meas_status_0 register
-    uint8_t rx_payload[1] = {0};
-
-    I2C_Transmit(TPH_ADDRESS, &reg, 1);
-    I2C_Receive(TPH_ADDRESS, rx_payload, 1);
-
-    if (rx_payload[0] & 0x80)
+    int8_t result = bme680_get_sensor_data(&_field_data, &_sensor);
+    if (result == BME680_OK)
     {
-        _new_data = 1;
-        return 1;
+    	_new_data = 1;
+    	return 1;
     }
-
-    return 0;
+    else if (result == BME680_W_NO_NEW_DATA)
+    {
+    	return 0;
+    }
+    else
+    	return result;
 }
 
-uint8_t TPH_GetPressure(float *pressure)
+uint8_t TPH_GetPressure(float *pressure, enum TPH_PressureUnits units)
 {
-    if (!_new_data && !TPH_CheckForNewData())
+    if (pressure == NULL || (!_new_data && TPH_CheckForNewData() <= 0))
     {
         return 0;
     }
 
-    uint8_t reg = 0x1f;
-    uint8_t rx_payload[3] = {0};
+    if (units == TPH_PRESSURE_HPA)
+    	*pressure = _field_data.pressure / 100.0f;
+    else if (units == TPH_PRESSURE_INHG)
+    	*pressure = _field_data.pressure / 3386.38867f;
 
-    I2C_Transmit(TPH_ADDRESS, &reg, 1);
-    I2C_Receive(TPH_ADDRESS, rx_payload, 3);
-
-    uint32_t raw_pressure =
-        rx_payload[0] << 12
-        | rx_payload[1] << 4
-        | rx_payload[2] >> 4;
+    return 1;
 }
 
 uint8_t TPH_GetTemperature(float *temperature)
@@ -127,4 +122,9 @@ uint8_t TPH_GetHumidity(float *humidity)
     {
         return 0;
     }
+}
+
+uint16_t TPH_GetMeasTimeMs()
+{
+	return _meas_time;
 }
