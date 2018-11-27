@@ -33,12 +33,14 @@ void TestTask(void *pvParameters)
 	float pressure = 0.0f;
 	if(TPH_Initialize() == 0)
 	{
-		uint16_t meas_time = TPH_GetMeasTimeMs();
+		uint16_t meas_time;
 		TickType_t xLastWakeTime = xTaskGetTickCount();
 		int8_t result;
 		for (;;)
 		{
+			Util_DelayMs(50);
 			result = TPH_StartMeasurement();
+			meas_time = TPH_GetMeasTimeMs();
 			while (!TPH_CheckForNewData())
 				;
 			TPH_GetPressure(&pressure, TPH_PRESSURE_INHG);
@@ -59,7 +61,7 @@ int main(void)
 	GPIO_Init(GPIOA, &GPIOStruct);
 	xTaskCreate( TestTask,
 	"TestTask",
-	128,
+	256,
 	NULL,
 	1,
 	NULL );

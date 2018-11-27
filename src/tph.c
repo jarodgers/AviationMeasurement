@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include "FreeRTOS.h"
 #include "i2c.h"
 #include "util.h"
 #include "tph.h"
@@ -15,11 +16,13 @@ static uint16_t _meas_time = 0;
 
 static int8_t _tph_i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
-    uint8_t *payload = (uint8_t *)malloc(1 + len);
+    uint8_t *payload = (uint8_t *)pvPortMalloc(1 + len);
+    if (payload == NULL)
+    	for (;;);
     payload[0] = reg_addr;
     memcpy(payload+1,data,len);
     int8_t result = I2C_Transmit(dev_id << 1, payload, 1 + len);
-    free(payload);
+    vPortFree(payload);
 
     return result;
 }
@@ -43,35 +46,38 @@ int8_t TPH_Initialize()
     _sensor.write = _tph_i2c_write;
     _sensor.read = _tph_i2c_read;
     _sensor.delay_ms = Util_DelayMs;
-    _sensor.amb_temp = 20;
-
-    int8_t result = bme680_init(&_sensor);
-
-    if (result != BME680_OK)
-        return result;
-
-    _sensor.tph_sett.os_hum = BME680_OS_2X;
-    _sensor.tph_sett.os_pres = BME680_OS_2X;
-    _sensor.tph_sett.os_temp = BME680_OS_2X;
+    _sensor.amb_temp = 20; // placeholder
+    _sensor.tph_sett.os_hum = BME680_OS_4X;
+    _sensor.tph_sett.os_pres = BME680_OS_8X;
+    _sensor.tph_sett.os_temp = BME680_OS_8X;
     _sensor.tph_sett.filter = BME680_FILTER_SIZE_3;
     _sensor.gas_sett.run_gas = BME680_DISABLE_GAS_MEAS;
     _sensor.power_mode = BME680_FORCED_MODE;
 
-    uint16_t set_required_settings = BME680_OST_SEL | BME680_OSP_SEL | BME680_OSH_SEL | BME680_FILTER_SEL;
-    result = bme680_set_sensor_settings(set_required_settings,&_sensor)
-        || bme680_set_sensor_mode(&_sensor);
-
-    bme680_get_profile_dur(&_meas_time, &_sensor);
-
-    return result;
+    return bme680_init(&_sensor);
 }
 
 int8_t TPH_StartMeasurement()
 {
     _new_data = 0;
 
+    uint16_t set_required_settings = BME680_OST_SEL | BME680_OSP_SEL | BME680_OSH_SEL | BME680_FILTER_SEL;
     _sensor.power_mode = BME680_FORCED_MODE;
-	return bme680_set_sensor_mode(&_sensor);
+    int8_t result = bme680_set_sensor_settings(set_required_settings,&_sensor);
+    if (result != BME680_OK)
+    {
+    	return result;
+    }
+
+    result = bme680_set_sensor_mode(&_sensor);
+    if (result != BME680_OK)
+    {
+    	return result;
+    }
+
+	bme680_get_profile_dur(&_meas_time, &_sensor);
+
+	return result;
 }
 
 int8_t TPH_CheckForNewData()
