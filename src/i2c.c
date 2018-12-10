@@ -13,7 +13,7 @@ void I2C_Initialize()
 		GPIOStruct.GPIO_Mode = GPIO_Mode_AF;
 		GPIOStruct.GPIO_OType = GPIO_OType_OD;
 		GPIOStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
-		GPIOStruct.GPIO_Speed = GPIO_Fast_Speed;
+		GPIOStruct.GPIO_Speed = GPIO_Medium_Speed;
 
 		GPIOStruct.GPIO_Pin = GPIO_Pin_6;
 		GPIO_Init(GPIOB, &GPIOStruct);

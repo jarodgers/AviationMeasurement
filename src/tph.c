@@ -1,12 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "FreeRTOS.h"
 #include "i2c.h"
 #include "util.h"
 #include "tph.h"
 #include "bme680.h"
-
-#define TPH_ADDRESS 0xec
 
 static uint8_t _new_data = 0;
 
@@ -101,7 +100,7 @@ int8_t TPH_CheckForNewData()
 
 uint8_t TPH_GetPressure(float *pressure, enum TPH_PressureUnits units)
 {
-    if (pressure == NULL || (!_new_data && TPH_CheckForNewData() <= 0))
+    if (pressure == NULL || (!_new_data && TPH_CheckForNewData() != 1))
     {
         return 0;
     }
@@ -110,24 +109,59 @@ uint8_t TPH_GetPressure(float *pressure, enum TPH_PressureUnits units)
     	*pressure = _field_data.pressure / 100.0f;
     else if (units == TPH_PRESSURE_INHG)
     	*pressure = _field_data.pressure / 3386.38867f;
+    else
+    	*pressure = 0.0f;
 
     return 1;
 }
 
-uint8_t TPH_GetTemperature(float *temperature)
+uint8_t TPH_GetTemperature(float *temperature, enum TPH_TemperatureUnits units)
 {
-    if (!_new_data && !TPH_CheckForNewData())
+    if (temperature == NULL || (!_new_data && TPH_CheckForNewData() != 1))
     {
         return 0;
     }
+
+    if (units == TPH_TEMP_DEG_C)
+    	*temperature = _field_data.temperature;
+    else if (units == TPH_TEMP_DEG_F)
+    	*temperature = _field_data.temperature * 9.0f / 5.0f + 32.0f;
+    else
+    	*temperature = -1000000.0f;
+
+    return 1;
 }
 
 uint8_t TPH_GetHumidity(float *humidity)
 {
-    if (!_new_data && !TPH_CheckForNewData())
+    if (humidity == NULL || (!_new_data && TPH_CheckForNewData() != 1))
     {
         return 0;
     }
+
+    *humidity = _field_data.humidity;
+
+    return 1;
+}
+
+uint8_t TPH_GetAltitude(float *altitude, float altimeter, enum TPH_AltitudeUnits altitude_units, enum TPH_PressureUnits altimeter_units)
+{
+	if (altitude == NULL || (!_new_data && TPH_CheckForNewData() != 1))
+    {
+        return 0;
+    }
+
+	if (altimeter_units == TPH_PRESSURE_INHG)
+		altimeter = altimeter * 33.86389f; // convert to hPa
+
+	float altitude_meters = (pow(altimeter/(_field_data.pressure/100.0f),0.19022256f) - 1) * (_field_data.temperature + 273.15f) / 0.0065f;
+
+	if (altitude_units == TPH_ALTITUDE_METERS)
+		*altitude = altitude_meters;
+	else if (altitude_units == TPH_ALTITUDE_FT)
+		*altitude = altitude_meters * 3.28084f;
+
+	return 1;
 }
 
 uint16_t TPH_GetMeasTimeMs()
