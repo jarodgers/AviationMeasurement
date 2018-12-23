@@ -3,7 +3,7 @@
 
 static volatile uint8_t _is_init = 0;
 
-void I2C_Initialize()
+uint8_t I2C_Initialize()
 {
 	// TODO: make sure this is protected by a mutex
 	if (!_is_init)
@@ -35,6 +35,8 @@ void I2C_Initialize()
 
 		_is_init = 1;
 	}
+
+	return 1;
 }
 
 uint8_t I2C_IsInitialized()
@@ -118,6 +120,138 @@ int8_t I2C_Receive(uint8_t address, uint8_t *data, uint16_t num_bytes)
 
 		data[i] = I2C_ReceiveData(I2C1);
 	}
+
+	I2C_GenerateSTOP(I2C1, ENABLE);
+
+	return 0;
+}
+
+int8_t I2C_ReadRegs(uint8_t address, uint8_t reg, uint8_t *data, uint16_t num_bytes)
+{
+	if (!_is_init)
+	{
+		I2C_Initialize();
+	}
+
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) == SET)
+		; // wait until any previous communications are finished
+
+	I2C_AcknowledgeConfig(I2C1, ENABLE);
+
+	I2C_GenerateSTART(I2C1, ENABLE);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT))
+		; // wait for event
+
+	I2C_Send7bitAddress(I2C1, address, I2C_Direction_Transmitter);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED))
+		; // wait for event
+
+	I2C_SendData(I2C1, reg);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
+		; // wait for event
+
+	// generate repeated start
+	I2C_GenerateSTART(I2C1, ENABLE);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT))
+		; // wait for event
+
+	I2C_Send7bitAddress(I2C1, address, I2C_Direction_Receiver);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED))
+		; // wait for event
+
+	uint16_t i;
+	for (i = 0; i < num_bytes; ++i)
+	{
+		if (i == (num_bytes-1))
+		{
+			I2C_AcknowledgeConfig(I2C1, DISABLE);
+		}
+
+		while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED))
+			; // wait for event
+
+		data[i] = I2C_ReceiveData(I2C1);
+	}
+
+	I2C_GenerateSTOP(I2C1, ENABLE);
+
+	return 0;
+}
+
+int8_t I2C_WriteRegs(uint8_t address, uint8_t reg, uint8_t *data, uint16_t num_bytes)
+{
+	if (!_is_init)
+	{
+		I2C_Initialize();
+	}
+
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) == SET)
+		; // wait until any previous communications are finished
+
+	I2C_AcknowledgeConfig(I2C1, ENABLE);
+
+	I2C_GenerateSTART(I2C1, ENABLE);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT))
+		; // wait for event
+
+	I2C_Send7bitAddress(I2C1, address, I2C_Direction_Transmitter);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED))
+		; // wait for event
+
+	I2C_SendData(I2C1, reg);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
+		; // wait for event
+
+	uint16_t i;
+	for (i = 0; i < num_bytes; ++i)
+	{
+		I2C_SendData(I2C1, data[i]);
+
+		// if we are on the last byte, we wait for a slightly different event than intermediate bytes
+		if (i == (num_bytes-1))
+		{
+			while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
+				; // wait for event
+		}
+		else
+		{
+			while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTING))
+				; // wait for event
+		}
+	}
+
+	I2C_GenerateSTOP(I2C1, ENABLE);
+
+	return 0;
+}
+
+int8_t I2C_WriteRegNoAck(uint8_t address, uint8_t reg, uint8_t *data)
+{
+	if (!_is_init)
+	{
+		I2C_Initialize();
+	}
+
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) == SET)
+		; // wait until any previous communications are finished
+
+	I2C_AcknowledgeConfig(I2C1, ENABLE);
+
+	I2C_GenerateSTART(I2C1, ENABLE);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT))
+		; // wait for event
+
+	I2C_Send7bitAddress(I2C1, address, I2C_Direction_Transmitter);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED))
+		; // wait for event
+
+	I2C_SendData(I2C1, reg);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
+		; // wait for event
+
+	I2C_SendData(I2C1, *data);
+	while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTING))
+		; // wait for event
 
 	I2C_GenerateSTOP(I2C1, ENABLE);
 
