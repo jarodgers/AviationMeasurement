@@ -27,8 +27,7 @@ static void _init()
 	NVIC_InitTypeDef NVICStruct;
 	NVICStruct.NVIC_IRQChannel = TIM2_IRQn;
 	NVICStruct.NVIC_IRQChannelCmd = ENABLE;
-	NVICStruct.NVIC_IRQChannelPreemptionPriority = 1;
-	NVICStruct.NVIC_IRQChannelSubPriority = 1;
+	NVICStruct.NVIC_IRQChannelPreemptionPriority = 2;
 	NVIC_Init(&NVICStruct);
 
 	_is_init = 1;
