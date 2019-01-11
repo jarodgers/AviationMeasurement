@@ -2,8 +2,8 @@
 #include <string.h>
 #include <math.h>
 #include "FreeRTOS.h"
+#include "task.h"
 #include "i2c.h"
-#include "util.h"
 #include "tph.h"
 #include "bme680.h"
 
@@ -38,18 +38,23 @@ static int8_t _tph_i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uin
     return (int8_t)result;
 }
 
+static void _tph_delay_ms(uint32_t msec)
+{
+	vTaskDelay(pdMS_TO_TICKS(msec));
+}
+
 int8_t TPH_Initialize()
 {
     _sensor.dev_id = BME680_I2C_ADDR_PRIMARY;
     _sensor.intf = BME680_I2C_INTF;
     _sensor.write = _tph_i2c_write;
     _sensor.read = _tph_i2c_read;
-    _sensor.delay_ms = Util_DelayMs;
+    _sensor.delay_ms = _tph_delay_ms;
     _sensor.amb_temp = 20; // placeholder
-    _sensor.tph_sett.os_hum = BME680_OS_4X;
-    _sensor.tph_sett.os_pres = BME680_OS_8X;
-    _sensor.tph_sett.os_temp = BME680_OS_8X;
-    _sensor.tph_sett.filter = BME680_FILTER_SIZE_3;
+    _sensor.tph_sett.os_hum = BME680_OS_8X;
+    _sensor.tph_sett.os_pres = BME680_OS_16X;
+    _sensor.tph_sett.os_temp = BME680_OS_16X;
+    _sensor.tph_sett.filter = BME680_FILTER_SIZE_15;
     _sensor.gas_sett.run_gas = BME680_DISABLE_GAS_MEAS;
     _sensor.power_mode = BME680_FORCED_MODE;
 
@@ -154,7 +159,7 @@ uint8_t TPH_GetAltitude(float *altitude, float altimeter, enum TPH_AltitudeUnits
 	if (altimeter_units == TPH_PRESSURE_INHG)
 		altimeter = altimeter * 33.86389f; // convert to hPa
 
-	float altitude_meters = (pow(altimeter/(_field_data.pressure/100.0f),0.19022256f) - 1) * (_field_data.temperature + 273.15f) / 0.0065f;
+	float altitude_meters = (powf(altimeter/(_field_data.pressure/100.0f),0.19022256f) - 1) * (_field_data.temperature + 273.15f) / 0.0065f;
 
 	if (altitude_units == TPH_ALTITUDE_METERS)
 		*altitude = altitude_meters;
