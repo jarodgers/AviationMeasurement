@@ -178,7 +178,7 @@ g_pfnVectors:
   .word	TIM8_CC_IRQHandler           			/* TIM8 Capture Compare interrupt                                     */
   .word	DMA1_Stream7_IRQHandler      			/* DMA1 Stream7 global interrupt                                      */
   .word	FMC_IRQHandler               			/* FMC global interrupt                                               */
-  .word	0                            			/* Reserved                                                           */
+  .word	SDIO_IRQHandler                            			/* SDIO interrupt                                                           */
   .word	TIM5_IRQHandler              			/* TIM5 global interrupt                                              */
   .word	SPI3_IRQHandler              			/* SPI3 global interrupt                                              */
   .word	UART4_IRQHandler             			/* UART4 global interrupt                                             */

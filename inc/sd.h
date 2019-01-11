@@ -23,6 +23,6 @@ SDCardState SD_GetStatus();
 
 uint8_t SD_ReadBlock(uint32_t addr, uint8_t *buf);
 
-uint8_t SD_WriteBlock(uint32_t addr, uint8_t *buf);
+uint8_t SD_WriteBlock(uint32_t addr, const uint8_t *buf);
 
 #endif

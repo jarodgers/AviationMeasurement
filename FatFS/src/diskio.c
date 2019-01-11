@@ -60,10 +60,14 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	DRESULT res;
-	int result;
+	UINT i;
+	for (i = 0; i < count; ++i)
+	{
+		if (!SD_ReadBlock(sector+i,buff+(512*i)))
+			return RES_ERROR;
+	}
 
-	return RES_PARERR;
+	return RES_OK;
 }
 
 
@@ -81,10 +85,15 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-	DRESULT res;
-	int result;
 
-	return RES_PARERR;
+	UINT i;
+	for (i = 0; i < count; ++i)
+	{
+		if (!SD_WriteBlock(sector+i,buff+(512*i)))
+			return RES_ERROR;
+	}
+
+	return RES_OK;
 }
 
 #endif
@@ -100,8 +109,8 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-	DRESULT res;
-	int result;
+	if (cmd == CTRL_SYNC)
+		return RES_OK;
 
 	return RES_PARERR;
 }
